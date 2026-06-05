@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Triangle Pixel Art Creator</title>
+
+<style>
+body{
+    margin:0;
+    font-family:Arial,sans-serif;
+    background:#111;
+    color:white;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+}
+
+h1{
+    margin:15px;
+}
+
+.toolbar{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    justify-content:center;
+    align-items:center;
+    margin-bottom:10px;
+}
+
+button{
+    padding:8px 14px;
+    border:none;
+    border-radius:6px;
+    cursor:pointer;
+    font-weight:bold;
+}
+
+.triangleBtn{
+    width:50px;
+    height:50px;
+    border:2px solid white;
+    background:#222;
+}
+
+.selected{
+    outline:3px solid yellow;
+}
+
+canvas{
+    border:2px solid white;
+    background:white;
+    image-rendering:pixelated;
+    cursor:crosshair;
+}
+
+#homeBtn{
+    background:#4caf50;
+    color:white;
+}
+</style>
+</head>
+<body>
+
+<h1>Triangle Pixel Art Creator</h1>
+
+<div class="toolbar">
+
+<input type="color" id="colorPicker" value="#ff0000">
+
+<button class="triangleBtn selected" data-type="0">
+◤
+</button>
+
+<button class="triangleBtn" data-type="1">
+◥
+</button>
+
+<button class="triangleBtn" data-type="2">
+◣
+</button>
+
+<button class="triangleBtn" data-type="3">
+◢
+</button>
+
+<button id="eraseBtn">Erase</button>
+<button id="clearBtn">Clear All</button>
+<button id="downloadBtn">Download PNG</button>
+<button id="homeBtn">Multiples</button>
+
+</div>
+
+<canvas id="canvas"></canvas>
+
+<p style="text-align:center;margin-top:15px;">
+This editor allows one triangle per square. For stacking multiple colored triangles in the same square, go to the Multi-Layer Editor page.
+</p>
+
+<script>
+const gridSize = 60;
+const cellSize = 10;
+
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+canvas.width = gridSize * cellSize;
+canvas.height = gridSize * cellSize;
+
+let currentTriangle = 0;
+let eraseMode = false;
+
+const grid = [];
+
+for(let y=0;y<gridSize;y++){
+    grid[y]=[];
+    for(let x=0;x<gridSize;x++){
+        grid[y][x]=null;
+    }
+}
+
+function drawTriangle(x,y,type,color){
+
+    const px=x*cellSize;
+    const py=y*cellSize;
+
+    ctx.fillStyle=color;
+    ctx.beginPath();
+
+    if(type===0){ // top-left
+        ctx.moveTo(px,py);
+        ctx.lineTo(px+cellSize,py);
+        ctx.lineTo(px,py+cellSize);
+    }
+
+    if(type===1){ // top-right
+        ctx.moveTo(px+cellSize,py);
+        ctx.lineTo(px+cellSize,py+cellSize);
+        ctx.lineTo(px,py);
+    }
+
+    if(type===2){ // bottom-left
+        ctx.moveTo(px,py+cellSize);
+        ctx.lineTo(px,py);
+        ctx.lineTo(px+cellSize,py+cellSize);
+    }
+
+    if(type===3){ // bottom-right
+        ctx.moveTo(px+cellSize,py+cellSize);
+        ctx.lineTo(px+cellSize,py);
+        ctx.lineTo(px,py+cellSize);
+    }
+
+    ctx.closePath();
+    ctx.fill();
+}
+
+function render(){
+
+    ctx.fillStyle="white";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    for(let y=0;y<gridSize;y++){
+        for(let x=0;x<gridSize;x++){
+
+            const cell=grid[y][x];
+
+            if(cell){
+                drawTriangle(
+                    x,
+                    y,
+                    cell.type,
+                    cell.color
+                );
+            }
+
+            ctx.strokeStyle="#ddd";
+            ctx.strokeRect(
+                x*cellSize,
+                y*cellSize,
+                cellSize,
+                cellSize
+            );
+        }
+    }
+}
+
+function paint(e){
+
+    const rect=canvas.getBoundingClientRect();
+
+    const x=Math.floor(
+        (e.clientX-rect.left)/cellSize
+    );
+
+    const y=Math.floor(
+        (e.clientY-rect.top)/cellSize
+    );
+
+    if(
+        x<0 || y<0 ||
+        x>=gridSize || y>=gridSize
+    ) return;
+
+    if(eraseMode){
+        grid[y][x]=null;
+    }else{
+        grid[y][x]={
+            type:currentTriangle,
+            color:document.getElementById(
+                "colorPicker"
+            ).value
+        };
+    }
+
+    render();
+}
+
+let drawing=false;
+
+canvas.addEventListener("mousedown",e=>{
+    drawing=true;
+    paint(e);
+});
+
+canvas.addEventListener("mousemove",e=>{
+    if(drawing) paint(e);
+});
+
+window.addEventListener("mouseup",()=>{
+    drawing=false;
+});
+
+document
+.querySelectorAll(".triangleBtn")
+.forEach(btn=>{
+
+    btn.addEventListener("click",()=>{
+
+        eraseMode=false;
+
+        document
+        .querySelectorAll(".triangleBtn")
+        .forEach(b=>b.classList.remove("selected"));
+
+        btn.classList.add("selected");
+
+        currentTriangle=
+        Number(btn.dataset.type);
+    });
+
+});
+
+document.getElementById("eraseBtn")
+.addEventListener("click",()=>{
+    eraseMode=true;
+
+    document
+    .querySelectorAll(".triangleBtn")
+    .forEach(b=>b.classList.remove("selected"));
+});
+
+document.getElementById("clearBtn")
+.addEventListener("click",()=>{
+
+    for(let y=0;y<gridSize;y++){
+        for(let x=0;x<gridSize;x++){
+            grid[y][x]=null;
+        }
+    }
+
+    render();
+});
+
+document.getElementById("downloadBtn")
+.addEventListener("click",()=>{
+
+    const link=document.createElement("a");
+
+    link.download="triangle_pixel_art.png";
+    link.href=canvas.toDataURL("image/png");
+
+    link.click();
+});
+
+document.getElementById("homeBtn")
+.addEventListener("click", () => {
+    window.location.href = "multiples.html";
+});
+
+render();
+</script>
+
+</body>
+</html>
